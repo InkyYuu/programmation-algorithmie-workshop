@@ -6,6 +6,7 @@
 #include <iomanip>
 #include <algorithm>
 #include <numbers>
+#include <complex>
 
 /**
  * Conserve uniquement la composante verte de chaque pixel de l'image.
@@ -474,6 +475,155 @@ void pixelSort(sil::Image& img)
     img.pixels() = pixels;
 }
 
+/**
+ * Génère le fractal de Mandelbrot et le dessine dans l'image fournie.
+ * Chaque pixel de l'image est coloré en fonction du nombre d'itérations nécessaires pour déterminer si le point complexe correspondant appartient à l'ensemble de Mandelbrot.
+ *
+ * @param img Image à modifier (type sil::Image), modifiée en place.
+ * @param iterations Nombre maximum d'itérations pour déterminer l'appartenance à l'ensemble de Mandelbrot (par défaut 100).
+ */
+void mandelbrotFractal(sil::Image& img, int iterations = 100)
+{
+    int width = img.width();
+    int height = img.height();
+
+    for (int y = 0; y < height; ++y)
+    {
+        for (int x = 0; x < width; ++x) {
+            std::complex<float> c(
+                (static_cast<float>(x) / width) * 3.5f - 2.5f,
+                (static_cast<float>(y) / height) * 2.0f - 1.0f
+            );
+            std::complex<float> z = 0;
+            int n = 0;
+
+            while (std::abs(z) <= 2.0f && n < iterations)
+            {
+                z = z * z + c;
+                ++n;
+            }
+
+            float t = static_cast<float>(n) / iterations;
+            img.pixel(x, y) = glm::vec3{t, t, t};
+        }
+    }
+}
+
+enum class Kernel
+{
+    Identity,
+    Blur,
+    Sharpen,
+    EdgeDetection
+};
+
+std::vector<std::vector<float>> getKernel(Kernel type) {
+    switch (type) {
+        case Kernel::Identity:
+            return {
+                {0, 0, 0},
+                {0, 1, 0},
+                {0, 0, 0}
+            };
+
+        case Kernel::Blur:
+            return {
+                {0.0625f, 0.125f, 0.0625f},
+                {0.125f, 0.25f, 0.125f},
+                {0.0625f, 0.125f, 0.0625f}
+            };
+
+        case Kernel::Sharpen:
+            return {
+                { 0, -1,  0},
+                {-1,  5, -1},
+                { 0, -1,  0}
+            };
+
+        case Kernel::EdgeDetection:
+            return {
+                {-1, -1, -1},
+                {-1,  8, -1},
+                {-1, -1, -1}
+            };
+    }
+
+    return {};
+}
+
+void convolution(sil::Image& img, Kernel kernel) {
+    std::vector<std::vector<float>> k = getKernel(kernel);
+    sil::Image original = img;
+
+    for (int y = 1; y < img.height() - 1; ++y) {
+        for (int x = 1; x < img.width() - 1; ++x) {
+            glm::vec3 newColor{0.f, 0.f, 0.f};
+
+            for (int ky = -1; ky <= 1; ++ky) {
+                for (int kx = -1; kx <= 1; ++kx) {
+                    glm::vec3 neighborColor = original.pixel(x + kx, y + ky);
+                    newColor += neighborColor * k[ky + 1][kx + 1];
+                }
+            }
+
+            img.pixel(x, y) = newColor;
+        }
+    }
+}
+
+/* Effets personnels */
+
+/**
+ * Applique un effet de pixelisation à l'image en regroupant les pixels en blocs et en remplaçant chaque bloc par la couleur moyenne de ses pixels.
+ *
+ * @param img Image à modifier (type sil::Image), modifiée en place.
+ * @param blockSize Taille des blocs de pixels (par défaut 8).
+ */
+void pixelated(sil::Image& img, int blockSize = 8) // Effet 8 bits
+{
+    int width = img.width();
+    int height = img.height();
+
+    for (int y = 0; y < height; y += blockSize)
+    {
+        for (int x = 0; x < width; x += blockSize)
+        {
+            // Calcul de la couleur moyenne du bloc
+            glm::vec3 avgColor{0.f, 0.f, 0.f};
+            int pixelCount = 0;
+
+            for (int dy = 0; dy < blockSize; ++dy)
+            {
+                for (int dx = 0; dx < blockSize; ++dx)
+                {
+                    if (x + dx < width && y + dy < height)
+                    {
+                        avgColor += img.pixel(x + dx, y + dy);
+                        pixelCount++;
+                    }
+                }
+            }
+
+            if (pixelCount > 0)
+            {
+                avgColor /= static_cast<float>(pixelCount);
+            }
+
+            // Application de la couleur moyenne à tous les pixels du bloc
+            for (int dy = 0; dy < blockSize; ++dy)
+            {
+                for (int dx = 0; dx < blockSize; ++dx)
+                {
+                    if (x + dx < width && y + dy < height)
+                    {
+                        img.pixel(x + dx, y + dy) = avgColor;
+                    }
+                }
+            }
+        }
+    }
+}
+
 int main()
 {
     sil::Image image{"images/logo.png"};
@@ -549,6 +699,30 @@ int main()
     image = sil::Image{"images/logo.png"};
     pixelSort(image);
     image.save("output/pixel_sort.png");
+
+    image = sil::Image{500, 500};
+    mandelbrotFractal(image);
+    image.save("output/mandelbrot.png");
+
+    image = sil::Image{"images/logo.png"};
+    convolution(image, Kernel::Identity);
+    image.save("output/convolution_identity.png");
+
+    image = sil::Image{"images/logo.png"};
+    convolution(image, Kernel::Blur);
+    image.save("output/convolution_blur.png");
+
+    image = sil::Image{"images/logo.png"};
+    convolution(image, Kernel::Sharpen);
+    image.save("output/convolution_sharpen.png");
+
+    image = sil::Image{"images/logo.png"};
+    convolution(image, Kernel::EdgeDetection);
+    image.save("output/convolution_edge_detection.png");
+
+    image = sil::Image{"images/logo.png"};
+    pixelated(image);
+    image.save("output/pixelated.png");
 
     return 0;
 }

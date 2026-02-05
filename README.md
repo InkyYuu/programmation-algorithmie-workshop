@@ -1,4 +1,6 @@
-# 🐣 S1 | Prog: Workshop
+# Programmation & Algorithmie Workshop - Effets de traitement d'image (S1)
+
+Ce projet regroupe l’ensemble des exercices réalisés lors du workshop de programmation image.
 
 ## Exercices réalisés
 
@@ -44,8 +46,9 @@
 
 ### ✔ Luminosité
 
-![Darker](output/darker.png)
-![Brighter](output/brighter.png)
+| Plus sombre                  | Original              | Plus clair                       |
+| ---------------------------- | --------------------- | -------------------------------- |
+| ![Darker](output/darker.jpg) | ![](images/photo.jpg) | ![Brighter](output/brighter.jpg) |
 
 <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 10px; margin: 10px 0; border-radius: 5px; font-family: Arial, sans-serif; color: #856404;">
     💡 Il est possible de modifier la luminosité en changeant la valeur du paramètre <strong>mode</strong>, par exemple <strong>brightness(img, Brightness::Darker)</strong> pour une image plus sombre <i>(par défaut, l'image est éclaircie)</i>.
@@ -102,3 +105,41 @@
 ### ✔ Tri de pixels
 
 ![Pixel Sort](output/pixel_sort.png)
+
+### ✔ Fractale de Mandelbrot
+
+![Mandelbrot](output/mandelbrot.png)
+
+### ✔Convolutions
+
+<div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 10px; margin: 10px 0; border-radius: 5px; font-family: Arial, sans-serif; color: #856404;">
+    💡 Les convolutions sont des opérations de traitement d'image qui appliquent un noyau (ou filtre) à chaque pixel de l'image pour produire une nouvelle image. Chaque noyau a un effet spécifique sur l'image, comme l'identité, le flou, l'accentuation ou la détection de contours. Pour modifier l'effet voulu, il suffit de rajouter le nom dans l'enum <strong>Kernel</strong>, la matrice dans la fonction <strong>getKernel</strong> et de passer en paramètre de la fonction <strong>convolution</strong> le nom du Kernel.
+</div>
+
+| Kernel                | Aperçu                                                   |
+| --------------------- | -------------------------------------------------------- |
+| Identité              | ![Identity](output/convolution_identity.png)             |
+| Flou                  | ![Blur](output/convolution_blur.png)                     |
+| Accentuation          | ![Sharpen](output/convolution_sharpen.png)               |
+| Détection de contours | ![Edge Detection](output/convolution_edge_detection.png) |
+
+## Effets personnels !
+
+### Pixellisation
+
+![Pixelated](output/pixelated.png)
+
+<div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 10px; margin: 10px 0; border-radius: 5px; font-family: Arial, sans-serif; color: #856404;">
+    💡 Il est possible de modifier la taille des blocs de pixels en changeant le paramètre de la fonction <strong>pixelated</strong>, par exemple <strong>pixelated(img, 20)</strong> pour une pixelisation avec des blocs de 20 pixels <i>(par défaut, la taille des blocs est de 8 pixels)</i>.
+    <strong>Effet personnel</strong> que j'ai voulu faire pour donner un aspect pixel art à l'image, en regroupant les pixels en blocs et en remplaçant chaque bloc par la couleur moyenne de ses pixels. <i>(Effet 8 bits)</i>
+</div>
+
+### Image différentielle
+
+| Classique                                | Inky                                  | Inky Mono                                       |
+| ---------------------------------------- | ------------------------------------- | ----------------------------------------------- |
+| ![Differential](output/differential.png) | ![Inky](output/differential_inky.png) | ![Inky Mono](output/differential_inky_mono.png) |
+
+<div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 10px; margin: 10px 0; border-radius: 5px; font-family: Arial, sans-serif; color: #856404;">
+    💡 L'image différentielle est un effet que j'ai vu lors de ma 3ème année de BUT Info pour un exercice en C (création de notre propre format d'image). Il calcule les différences entre chaque pixel et le pixel précédent dans l'image, ce qui peut donner un aspect de dessin au trait ou de contour à l'image. J'ai également ajouté une version avec une palette de couleurs limitée (Inky) et une version monochrome pour montrer les différentes possibilités de cet effet.
+</div>

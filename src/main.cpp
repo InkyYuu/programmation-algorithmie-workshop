@@ -571,7 +571,7 @@ void convolution(sil::Image& img, Kernel kernel) {
     }
 }
 
-/* Effets personnels */
+/* ----- Effets personnels ----- */
 
 /**
  * Applique un effet de pixelisation à l'image en regroupant les pixels en blocs et en remplaçant chaque bloc par la couleur moyenne de ses pixels.
@@ -624,6 +624,95 @@ void pixelated(sil::Image& img, int blockSize = 8) // Effet 8 bits
     }
 }
 
+/* 
+    Image différentielle 
+    Effet vu lors de ma 3ème année de BUT Info pour un exercice en C (création de notre propre format d'image et de compression)
+*/
+
+/**
+ * Calcule les différences entre chaque pixel et le pixel précédent dans l'image.
+ * Le premier pixel reste inchangé.
+ *
+ * @param img Image source (type sil::Image).
+ * @return Vecteur contenant les pixels différentiels.
+ */
+std::vector<glm::vec3> pixel_to_diff(sil::Image& img)
+{
+    int width = img.width();
+    int height = img.height();
+    std::vector<glm::vec3> differential;
+    differential.reserve(width * height);
+    std::vector<glm::vec3> image_pixels = img.pixels(); // Copie des pixels de l'image (tableau 1D)
+
+    for (int x = 0; x < width * height; ++x)
+    {
+        if (x == 0){
+            differential.push_back(image_pixels[0]);
+            continue;
+        } else {
+            differential.push_back(image_pixels[x] - image_pixels[x - 1]);
+        }        
+    }
+
+    return differential;
+}
+
+/**
+ * Sauvegarde les données différentielles dans un fichier CSV.
+ *
+ * @param data Vecteur contenant les pixels différentiels (type glm::vec3).
+ * @param filename Nom du fichier CSV où les données seront sauvegardées.
+ */
+void save_differential_data_in_csv(std::vector<glm::vec3> data, const std::string& filename)
+{
+    std::ofstream file(filename);
+    if (!file.is_open())
+    {
+        std::cerr << "Erreur : impossible d'ouvrir le fichier " << filename << std::endl;
+        return;
+    }
+
+    file << "R,G,B\n"; // En-tête du fichier CSV
+    file << std::fixed << std::setprecision(6);
+
+    for (const auto& color : data)
+    {
+        file << color.r << "," << color.g << "," << color.b << "\n";
+    }
+
+    file.close();
+    std::cout << "Data saved in " << filename << std::endl;
+}
+
+/**
+ * Créer une image différentielle à partir de l'image source.
+ * L'image différentielle est obtenue en calculant la différence entre chaque pixel et le pixel précédent.
+ * Le résultat est ensuite converti en une image où les valeurs absolues des différences sont utilisées.
+ * Seul le premier pixel reste inchangé.
+ *
+ * @param img Image source (type sil::Image), modifiée en place pour contenir l'image différentielle.
+ */
+void differential(sil::Image& img)
+{
+    int width = img.width();
+    int height = img.height();
+    std::vector<glm::vec3> differential = pixel_to_diff(img);
+    sil::Image differential_image{width, height};
+
+    for (int x = 0; x < width; ++x)
+    {
+        for (int y = 0; y < height; ++y)
+        {
+            glm::vec3 colors = glm::abs(differential[y * width + x]);
+            glm::vec3 base = {1.0f, 1.0f, 1.0f};
+            differential_image.pixel(x, y) = base - colors;
+        }
+    }
+
+    save_differential_data_in_csv(differential, "../output/differential.csv");
+    img = std::move(differential_image);
+}
+
 int main()
 {
     sil::Image image{"images/logo.png"};
@@ -664,12 +753,12 @@ int main()
 
     image = sil::Image{"images/photo.jpg"};
     brightness(image, Brightness::Darker);
-    image.save("output/darker.png");
+    image.save("output/darker.jpg");
 
     image = sil::Image{"images/photo.jpg"};
     brightness(image, Brightness::Brighter);
-    image.save("output/brighter.png");
-
+    image.save("output/brighter.jpg");
+    
     image = sil::Image{500, 500};
     disk(image);
     image.save("output/disk.png");
@@ -723,6 +812,18 @@ int main()
     image = sil::Image{"images/logo.png"};
     pixelated(image);
     image.save("output/pixelated.png");
+
+    image = sil::Image{"images/logo.png"};
+    differential(image);
+    image.save("output/differential.png");
+
+    image = sil::Image{"images/inky.png"};
+    differential(image);
+    image.save("output/differential_inky.png");
+
+    image = sil::Image{"images/inky_mono.png"};
+    differential(image);
+    image.save("output/differential_inky_mono.png");
 
     return 0;
 }

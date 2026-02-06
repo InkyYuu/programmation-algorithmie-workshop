@@ -666,9 +666,9 @@ void gaussienne_difference(sil::Image& img) {
             glm::vec3 c1 = blurred1.pixel(x, y);
             glm::vec3 c2 = blurred2.pixel(x, y);
             img.pixel(x, y) = glm::vec3{
-                std::clamp(c1.r - c2.r > 0.3f ? 1.f : c1.r - c2.r, 0.f, 1.f),
-                std::clamp(c1.g - c2.g > 0.3f ? 1.f : c1.g - c2.g, 0.f, 1.f),
-                std::clamp(c1.b - c2.b > 0.3f ? 1.f : c1.b - c2.b, 0.f, 1.f)
+                std::clamp(c1.r - c2.r > 0.03f ? 1.f : c1.r - c2.r, 0.f, 1.f),
+                std::clamp(c1.g - c2.g > 0.03f ? 1.f : c1.g - c2.g, 0.f, 1.f),
+                std::clamp(c1.b - c2.b > 0.03f ? 1.f : c1.b - c2.b, 0.f, 1.f)
             };
         }
     }

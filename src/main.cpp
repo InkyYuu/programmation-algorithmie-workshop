@@ -1054,6 +1054,8 @@ int main()
     pixelated(image);
     image.save("output/pixelated.png");
 
+    save_differential_data_in_csv(sil::Image{"images/inky.png"}.pixels(), "../output/differential_original.csv");
+
     image = sil::Image{"images/logo.png"};
     differential(image, false);
     image.save("output/differential.png");

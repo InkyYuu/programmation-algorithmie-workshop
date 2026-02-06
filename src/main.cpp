@@ -514,7 +514,8 @@ enum class Kernel
     Identity,
     Blur,
     Sharpen,
-    EdgeDetection
+    EdgeDetection,
+    BoxBlur
 };
 
 std::vector<std::vector<float>> getKernel(Kernel type) {
@@ -551,7 +552,83 @@ std::vector<std::vector<float>> getKernel(Kernel type) {
     return {};
 }
 
+/**
+ * Applique une convolution de flou à l'image en utilisant un noyau de moyenne mobile de taille spécifiée.
+ * La convolution est effectuée en deux passes : d'abord horizontalement, puis verticalement.
+ * Le résultat final est une image floutée, où chaque pixel est la moyenne des pixels environnants dans un carré de taille "size x size".
+ * 
+ * @param img Image à modifier (type sil::Image), modifiée en place.
+ * @param size Taille du noyau de flou (par défaut 100). 
+ */
+void blur_convolution(sil::Image& img, int size = 100) {
+    if (size <= 1) return;
+
+    const int w = img.width();
+    const int h = img.height();
+    const int half = size / 2;
+
+    sil::Image temp{w, h};
+
+    for (int y = 0; y < h; ++y) {
+        glm::vec3 sum{0.f};
+
+        for (int i = -half; i < -half + size; ++i) {
+            int sx = std::clamp(i, 0, w - 1);
+            sum += img.pixel(sx, y);
+        }
+
+        temp.pixel(0, y) = sum / static_cast<float>(size);
+
+        for (int x = 1; x < w; ++x) {
+            int removeX = std::clamp(x - half - 1, 0, w - 1);
+            int addX    = std::clamp(x - half + size - 1, 0, w - 1);
+
+            sum -= img.pixel(removeX, y);
+            sum += img.pixel(addX, y);
+
+            temp.pixel(x, y) = sum / static_cast<float>(size);
+        }
+    }
+
+    sil::Image out{w, h};
+
+    for (int x = 0; x < w; ++x) {
+        glm::vec3 sum{0.f};
+
+        for (int j = -half; j < -half + size; ++j) {
+            int sy = std::clamp(j, 0, h - 1);
+            sum += temp.pixel(x, sy);
+        }
+
+        out.pixel(x, 0) = sum / static_cast<float>(size);
+
+        for (int y = 1; y < h; ++y) {
+            int removeY = std::clamp(y - half - 1, 0, h - 1);
+            int addY    = std::clamp(y - half + size - 1, 0, h - 1);
+
+            sum -= temp.pixel(x, removeY);
+            sum += temp.pixel(x, addY);
+
+            out.pixel(x, y) = sum / static_cast<float>(size);
+        }
+    }
+
+    img = std::move(out);
+}
+
+
+/**
+ * Applique une convolution à l'image en utilisant un noyau de convolution spécifié.
+ * La convolution est effectuée en parcourant chaque pixel de l'image (sauf les bords) et en calculant la nouvelle valeur du pixel en fonction des pixels voisins et du noyau.
+ *
+ * @param img Image à modifier (type sil::Image), modifiée en place.
+ * @param kernel Type de noyau de convolution à appliquer (Kernel::Identity, Kernel::Blur, Kernel::Sharpen, Kernel::EdgeDetection).
+ */
 void convolution(sil::Image& img, Kernel kernel) {
+    if (kernel == Kernel::BoxBlur) {
+        blur_convolution(img);
+        return;
+    }
     std::vector<std::vector<float>> k = getKernel(kernel);
     sil::Image original = img;
 
@@ -570,6 +647,160 @@ void convolution(sil::Image& img, Kernel kernel) {
         }
     }
 }
+
+/**
+ * Applique un effet de différence de gaussienne à l'image en utilisant deux convolutions de flou avec des tailles de noyau différentes.
+ * La différence de gaussienne est obtenue en soustrayant l'image floutée avec un noyau plus grand de l'image floutée avec un noyau plus petit.
+ * 
+ * @param img Image à modifier (type sil::Image), modifiée en place.
+ */
+void gaussienne_difference(sil::Image& img) {
+    sil::Image blurred1 = img;
+    sil::Image blurred2 = img;
+
+    blur_convolution(blurred1, 1);
+    blur_convolution(blurred2, 3);
+
+    for (int y = 0; y < img.height(); ++y) {
+        for (int x = 0; x < img.width(); ++x) {
+            glm::vec3 c1 = blurred1.pixel(x, y);
+            glm::vec3 c2 = blurred2.pixel(x, y);
+            img.pixel(x, y) = glm::vec3{
+                std::clamp(c1.r - c2.r > 0.3f ? 1.f : c1.r - c2.r, 0.f, 1.f),
+                std::clamp(c1.g - c2.g > 0.3f ? 1.f : c1.g - c2.g, 0.f, 1.f),
+                std::clamp(c1.b - c2.b > 0.3f ? 1.f : c1.b - c2.b, 0.f, 1.f)
+            };
+        }
+    }
+}
+
+/**
+ * Applique un filtre de Kuwahara à l'image pour réduire le bruit tout en préservant les bords.
+ * Pour chaque pixel, le filtre divise la région environnante en quatre sous-régions et calcule la moyenne et la variance de chaque sous-région.
+ * Le pixel est ensuite remplacé par la moyenne de la sous-région ayant la plus faible variance.
+ *
+ * @param img Image à modifier (type sil::Image), modifiée en place.
+ * @param radius Rayon de la région environnante à considérer pour le filtrage (par défaut 4).
+ */
+void kuwahara(sil::Image& img, int radius = 4) {
+    const int w = img.width();
+    const int h = img.height();
+    if (radius <= 0) return;
+
+    sil::Image original = img;
+
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+
+            glm::vec3 bestMean{0.f};
+            float bestVar = std::numeric_limits<float>::infinity();
+
+            for (int q = 0; q < 4; ++q) {
+                int dx0 = (q == 0 || q == 2) ? -radius : 0;
+                int dx1 = (q == 0 || q == 2) ? 0       : radius;
+                int dy0 = (q == 0 || q == 1) ? -radius : 0;
+                int dy1 = (q == 0 || q == 1) ? 0       : radius;
+
+                glm::vec3 mean{0.f};
+                float meanL = 0.f;
+                int count = 0;
+
+                for (int dy = dy0; dy <= dy1; ++dy) {
+                    for (int dx = dx0; dx <= dx1; ++dx) {
+                        int sx = std::clamp(x + dx, 0, w - 1);
+                        int sy = std::clamp(y + dy, 0, h - 1);
+                        const glm::vec3 c = original.pixel(sx, sy);
+                        mean += c;
+                        meanL += 0.299f * c.r + 0.587f * c.g + 0.114f * c.b;
+                        ++count;
+                    }
+                }
+
+                if (count == 0) continue;
+                mean /= static_cast<float>(count);
+                meanL /= static_cast<float>(count);
+
+                float var = 0.f;
+                for (int dy = dy0; dy <= dy1; ++dy) {
+                    for (int dx = dx0; dx <= dx1; ++dx) {
+                        int sx = std::clamp(x + dx, 0, w - 1);
+                        int sy = std::clamp(y + dy, 0, h - 1);
+                        float l = 0.299f * original.pixel(sx, sy).r + 0.587f * original.pixel(sx, sy).g + 0.114f * original.pixel(sx, sy).b;
+                        float d = l - meanL;
+                        var += d * d;
+                    }
+                }
+                var /= static_cast<float>(count);
+
+                if (var < bestVar) {
+                    bestVar = var;
+                    bestMean = mean;
+                }
+            }
+
+            img.pixel(x, y) = bestMean;
+        }
+    }
+}
+
+/**
+ * Applique un tramage (dithering) à une valeur de couleur d'un canal (R, G ou B) en utilisant un motif de Bayer 4x4.
+ * Le tramage est une technique de quantification qui permet de simuler des niveaux de couleur intermédiaires en utilisant des motifs de pixels.
+ * 
+ * @param value Valeur de couleur du canal à tramer (entre 0 et 1).
+ * @param x Coordonnée x du pixel (utilisée pour déterminer le seuil de tramage à partir du motif de Bayer).
+ * @param y Coordonnée y du pixel (utilisée pour déterminer le seuil de tramage à partir du motif de Bayer).
+ */
+float dither_channel(float value, int x, int y)
+{
+    static const int bayer[4][4] = {
+        { 0,  8,  2, 10},
+        {12,  4, 14,  6},
+        { 3, 11,  1,  9},
+        {15,  7, 13,  5}
+    };
+
+    value = std::clamp(value, 0.f, 1.f);
+
+    float threshold = (bayer[y % 4][x % 4] + 0.5f) / 16.f;
+
+    return value > threshold ? 1.f : 0.f;
+}
+
+
+/**
+ * Applique un tramage (dithering) en couleur à l'image.
+ * Chaque canal RGB est quantifié avec un motif de Bayer 4x4.
+ *
+ * @param img Image à modifier (modifiée en place)
+ * @param color Si true, applique le tramage à chaque canal RGB, sinon convertit l'image en niveaux de gris avant d'appliquer le tramage.
+ */
+void dithering(sil::Image& img, bool color = true)
+{
+    int width = img.width();
+    int height = img.height();
+
+    for (int y = 0; y < height; ++y)
+    {
+        for (int x = 0; x < width; ++x)
+        {
+            glm::vec3 colorVec = img.pixel(x, y);
+
+            if (color) {
+                colorVec.r = dither_channel(colorVec.r, x, y);
+                colorVec.g = dither_channel(colorVec.g, x, y);
+                colorVec.b = dither_channel(colorVec.b, x, y);
+            } else {
+                float gray = 0.299f * colorVec.r + 0.587f * colorVec.g + 0.114f * colorVec.b;
+                gray = dither_channel(gray, x, y);
+                colorVec = glm::vec3{gray, gray, gray};
+            }
+
+            img.pixel(x, y) = colorVec;
+        }
+    }
+}
+
 
 /* ----- Effets personnels ----- */
 
@@ -692,7 +923,7 @@ void save_differential_data_in_csv(std::vector<glm::vec3> data, const std::strin
  *
  * @param img Image source (type sil::Image), modifiée en place pour contenir l'image différentielle.
  */
-void differential(sil::Image& img)
+void differential(sil::Image& img, bool save_csv = true, const std::string& csv_filename = "../output/differential.csv")
 {
     int width = img.width();
     int height = img.height();
@@ -709,7 +940,9 @@ void differential(sil::Image& img)
         }
     }
 
-    save_differential_data_in_csv(differential, "../output/differential.csv");
+    if (save_csv){
+        save_differential_data_in_csv(differential, csv_filename);
+    }
     img = std::move(differential_image);
 }
 
@@ -810,20 +1043,40 @@ int main()
     image.save("output/convolution_edge_detection.png");
 
     image = sil::Image{"images/logo.png"};
+    convolution(image, Kernel::BoxBlur);
+    image.save("output/convolution_blur_box.png");
+
+    image = sil::Image{"images/inky.png"};
+    gaussienne_difference(image);
+    image.save("output/gaussienne_difference.png");
+
+    image = sil::Image{"images/logo.png"};
     pixelated(image);
     image.save("output/pixelated.png");
 
     image = sil::Image{"images/logo.png"};
-    differential(image);
+    differential(image, false);
     image.save("output/differential.png");
 
     image = sil::Image{"images/inky.png"};
-    differential(image);
+    differential(image, true, "../output/differential_inky.csv");
     image.save("output/differential_inky.png");
 
     image = sil::Image{"images/inky_mono.png"};
-    differential(image);
+    differential(image, true, "../output/differential_inky_mono.csv");
     image.save("output/differential_inky_mono.png");
+
+    image = sil::Image{"images/inky.png"};
+    kuwahara(image);
+    image.save("output/kuwahara.png");
+
+    image = sil::Image{"images/inky.png"};
+    dithering(image);
+    image.save("output/dithering_color.png");
+
+    image = sil::Image{"images/photo.jpg"};
+    dithering(image, false);
+    image.save("output/dithering_mono.jpg");    
 
     return 0;
 }

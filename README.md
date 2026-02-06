@@ -110,10 +110,10 @@ Ce projet regroupe l’ensemble des exercices réalisés lors du workshop de pro
 
 ![Mandelbrot](output/mandelbrot.png)
 
-### ✔Convolutions
+### ✔ Convolutions
 
 <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 10px; margin: 10px 0; border-radius: 5px; font-family: Arial, sans-serif; color: #856404;">
-    💡 Les convolutions sont des opérations de traitement d'image qui appliquent un noyau (ou filtre) à chaque pixel de l'image pour produire une nouvelle image. Chaque noyau a un effet spécifique sur l'image, comme l'identité, le flou, l'accentuation ou la détection de contours. Pour modifier l'effet voulu, il suffit de rajouter le nom dans l'enum <strong>Kernel</strong>, la matrice dans la fonction <strong>getKernel</strong> et de passer en paramètre de la fonction <strong>convolution</strong> le nom du Kernel.
+    💡 Les convolutions sont des opérations de traitement d'image qui appliquent un noyau (ou filtre) à chaque pixel de l'image pour produire une nouvelle image. Chaque noyau a un effet spécifique sur l'image, comme l'identité, le flou, l'accentuation, la détection de contours ou le flou en bloc. Pour modifier l'effet voulu, il suffit de rajouter le nom dans l'enum <strong>Kernel</strong>, la matrice dans la fonction <strong>getKernel</strong> et de passer en paramètre de la fonction <strong>convolution</strong> le nom du Kernel.
 </div>
 
 | Kernel                | Aperçu                                                   |
@@ -122,6 +122,27 @@ Ce projet regroupe l’ensemble des exercices réalisés lors du workshop de pro
 | Flou                  | ![Blur](output/convolution_blur.png)                     |
 | Accentuation          | ![Sharpen](output/convolution_sharpen.png)               |
 | Détection de contours | ![Edge Detection](output/convolution_edge_detection.png) |
+| Blur Box (100x100)    | ![Box Blur](output/convolution_blur_box.png)             |
+
+## ✔ Différence de Gaussienne
+
+![Gaussian Difference](output/gaussienne_difference.png)
+
+### ✔ Tramage
+
+| Tramage       | Aperçu                                        |
+| ------------- | --------------------------------------------- |
+| Noir et blanc | ![DitheringMono](output/dithering_mono.jpg)   |
+| Couleur       | ![DitheringColor](output/dithering_color.png) |
+
+<div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 10px; margin: 10px 0; border-radius: 5px; font-family: Arial, sans-serif; color: #856404;">
+    💡 Le tramage est une technique de traitement d'image qui consiste à réduire le nombre de couleurs d'une image tout en essayant de préserver les détails et les nuances.
+    J'ai fais la version couleur et la version monochrome (possible de choisir en changeant le booléen dans la fonction <strong>dithering</strong>) pour montrer les différentes possibilités de cet effet. Le tramage utilise une matrice de Bayer 4x4 pour déterminer comment répartir les pixels noirs et blancs (ou les différentes couleurs) en fonction de leur luminosité.
+</div>
+
+### ✔ Filtre de Kuwahara
+
+![Kuwahara](output/kuwahara.png)
 
 ## Effets personnels !
 
@@ -143,3 +164,5 @@ Ce projet regroupe l’ensemble des exercices réalisés lors du workshop de pro
 <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 10px; margin: 10px 0; border-radius: 5px; font-family: Arial, sans-serif; color: #856404;">
     💡 L'image différentielle est un effet que j'ai vu lors de ma 3ème année de BUT Info pour un exercice en C (création de notre propre format d'image). Il calcule les différences entre chaque pixel et le pixel précédent dans l'image, ce qui peut donner un aspect de dessin au trait ou de contour à l'image. J'ai également ajouté une version avec une palette de couleurs limitée (Inky) et une version monochrome pour montrer les différentes possibilités de cet effet.
 </div>
+
+<p style="margin-top: 50px; font-size: 0.9em; text-align: center;">Documenté et écrit par <strong>Kellian Bredeau</strong>.</p>
